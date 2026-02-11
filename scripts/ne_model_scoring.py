@@ -207,15 +207,13 @@ def score(scoring_df: pd.DataFrame, feature_cols: List[str], params: pd.Series) 
     df_sc = df.loc[mask].copy()
 
     X = df_sc[feature_cols].astype(float)
+    # Force add constant even if some features are constant (e.g., income bands)
     X = sm.add_constant(X, has_constant='add')
     z_hat = np.dot(X.values, params.values)
     p_hat = _inv_logit(z_hat)
 
     out = df_sc.copy()
     out["Predicted Market penetration (%)"] = (p_hat * 100.0)
-    # Derived fields
-    out["time_advantage (min)"] = out["_time_adv_min"]
-    out["distance_used (mi)"] = out["_distance_mi"]
     return out
 
 def load_csv(url_or_path: str) -> pd.DataFrame:
@@ -255,10 +253,12 @@ def write_excel(
 
         # 2) Training summary
         summary_cols = ["_penetration_frac", "_distance_mi", "_time_adv_min", "eVTOL cost (USD)", "eVTOL cost per mile (USD/mi)"] + INCOME_COLS
-        training_df[summary_cols].describe().to_excel(writer, sheet_name="Training summary")
-        # Correlation matrix
+        desc_df = training_df[summary_cols].describe()
+        desc_df.to_excel(writer, sheet_name="Training summary")
+        # Correlation matrix - calculate offset dynamically
         corr = training_df[summary_cols].corr()
-        corr.to_excel(writer, sheet_name="Training summary", startrow=len(summary_cols) + 4)
+        start_row = len(desc_df) + 3  # Add buffer rows after describe()
+        corr.to_excel(writer, sheet_name="Training summary", startrow=start_row)
 
         # 3) Model spec
         spec = pd.DataFrame({
@@ -302,7 +302,7 @@ def write_excel(
         # Chart: Predicted vs distance
         # Write a small table for chart source
         chart_data = scored_final[["Predicted Market penetration (%)"]].copy()
-        chart_data.insert(0, "distance_used (mi)", scored_df["distance_used (mi)"])
+        chart_data.insert(0, "distance_used (mi)", scored_df["_distance_mi"])
         chart_data.to_excel(writer, sheet_name="Charts", startrow=0, startcol=0, index=False)
 
         chart1 = workbook.add_chart({"type": "scatter"})
@@ -319,7 +319,7 @@ def write_excel(
 
         # Chart: Predicted vs time_advantage
         chart_data2 = scored_final[["Predicted Market penetration (%)"]].copy()
-        chart_data2.insert(0, "time_advantage (min)", scored_df["time_advantage (min)"])
+        chart_data2.insert(0, "time_advantage (min)", scored_df["_time_adv_min"])
         chart_data2.to_excel(writer, sheet_name="Charts", startrow=0, startcol=10, index=False)
 
         chart2 = workbook.add_chart({"type": "scatter"})
