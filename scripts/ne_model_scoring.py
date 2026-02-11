@@ -14,7 +14,7 @@ TRAINING_URL = "https://raw.githubusercontent.com/abarramda/tempfiles/refs/heads
 SCORING_URL = "https://raw.githubusercontent.com/abarramda/tempfiles/refs/heads/main/Regression%20test%20-%20Cleveland.csv"
 OUTPUT_XLSX = "NE Model – Cleveland Scoring.xlsx"
 
-EPS = 1e-6
+EPS = 1e-6  # Small epsilon to clamp probabilities in logit transformation and avoid log(0) errors
 
 INCOME_COLS = [
     "Income band A trips share",
@@ -153,7 +153,7 @@ def fit_model(train_df: pd.DataFrame, feature_cols: List[str]) -> ModelResult:
 
     y = _logit(df["_penetration_frac"].values)
     X = df[feature_cols].astype(float)
-    X = sm.add_constant(X)
+    X = sm.add_constant(X, has_constant='add')
 
     model = sm.OLS(y, X).fit(cov_type="HC3")
 
@@ -244,7 +244,7 @@ def write_excel(
             "Value": [
                 TRAINING_URL,
                 SCORING_URL,
-                pd.Timestamp.utcnow().strftime("%Y-%m-%d %H:%M:%SZ"),
+                pd.Timestamp.now(tz='UTC').strftime("%Y-%m-%d %H:%M:%SZ"),
                 "logit(p) on penetration fraction",
                 ", ".join(feature_cols),
                 ", ".join([c for c in OPTIONAL_TRIP_SHARE_COLS if c not in feature_cols]),
