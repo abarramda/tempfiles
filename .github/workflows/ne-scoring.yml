@@ -1,0 +1,35 @@
+name: NE model scoring
+
+on:
+  workflow_dispatch:
+
+jobs:
+  run-scoring:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run scoring
+        run: |
+          python scripts/ne_model_scoring.py
+
+      - name: Commit Excel output
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: "NE Model – Cleveland Scoring.xlsx"
+          message: "Add NE Model – Cleveland Scoring.xlsx"
+          default_author: github_actions
